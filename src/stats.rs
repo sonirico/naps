@@ -1,9 +1,10 @@
 use crossbeam::channel::Receiver;
 use crossterm::{
     cursor, execute,
-    style::{self, Color, PrintStyledContent},
+    style::{self, Color, PrintStyledContent, Stylize},
     terminal::{Clear, ClearType},
 };
+
 use std::io::{self, Result, Stderr, Write};
 use std::time::Instant;
 
@@ -39,9 +40,9 @@ pub fn stats_loop(silent: bool, receiver: Receiver<usize>) -> Result<()> {
 }
 
 fn output_progress(stderr: &mut Stderr, bytes: usize, elapsed: String, rate: f64) {
-    let bytes = style::style(format!("{} ", bytes)); //..with(Color::Red);
-    let elapsed = style::style(elapsed); //.with(Color::Green);
-    let rate = style::style(format!(" [{:.0}b/s]", rate)); //.with(Color::Blue);
+    let bytes = style::style(format!("{} ", bytes)).with(Color::Red);
+    let elapsed = style::style(elapsed).with(Color::Green);
+    let rate = style::style(format!(" [{:.0}b/s]", rate)).with(Color::Blue);
     let _ = execute!(
         stderr,
         cursor::MoveToColumn(0),
@@ -59,7 +60,7 @@ fn output_progress(stderr: &mut Stderr, bytes: usize, elapsed: String, rate: f64
 /// Here is an example of how to use it.
 ///
 /// ```rust
-/// use pied_piper::stats::Clock;
+/// use naps::stats::Clock;
 /// assert_eq!(65_u64.as_clock(), String::from("0:01:05"))
 /// ```
 pub trait Clock {
