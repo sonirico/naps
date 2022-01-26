@@ -10,7 +10,7 @@ pub struct Args {
 
 impl Args {
     pub fn parse() -> Self {
-        let matches = App::new("nuts")
+        let matches = App::new("naps")
             .version("0.1.0-alpha")
             .author("Marquitos <https://github.com/sonirico>")
             .about("NATS.io proxy")
