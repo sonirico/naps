@@ -40,7 +40,7 @@ pub fn stats_loop(silent: bool, receiver: Receiver<usize>) -> Result<()> {
 }
 
 fn output_progress(stderr: &mut Stderr, bytes: usize, elapsed: String, rate: f64) {
-    let bytes = style::style(format!("{} ", bytes)).with(Color::Red);
+    let bytes = style::style(format!("{} ", bytes.as_hf_bytes())).with(Color::Red);
     let elapsed = style::style(elapsed).with(Color::Green);
     let rate = style::style(format!(" [{:.0}b/s]", rate)).with(Color::Blue);
     let _ = execute!(
@@ -76,10 +76,45 @@ impl Clock for u64 {
     }
 }
 
+/// The HumanFriendlyBytes trait adds a `.as_hf_bytes()` method to `usize`
+///
+/// # Example
+/// Here is an example of how to use it.
+///
+/// ```rust
+/// use naps::stats::HumanFriendlyBytes;
+/// assert_eq!(1025_usize.as_hf_bytes(), String::from("1 KB"))
+/// ```
+pub trait HumanFriendlyBytes {
+    fn as_hf_bytes(&self) -> String;
+}
+
+impl HumanFriendlyBytes for usize {
+    fn as_hf_bytes(&self) -> String {
+        let byte_mul: Vec<(usize, &str)> = vec![
+            (usize::pow(1024, 3), "GB"),
+            (usize::pow(1024, 2), "MB"),
+            (usize::pow(1024, 1), "KB"),
+        ];
+
+        let v = *self;
+
+        for (mul, unit) in byte_mul.iter() {
+            let c = v / mul;
+            if c > 0 {
+                return format!("{} {}", c, unit);
+            }
+        }
+
+        return format!("{} B", v);
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::Clock;
+    use super::HumanFriendlyBytes;
 
     #[test]
     fn as_time_format() {
@@ -92,6 +127,20 @@ mod tests {
 
         for (input, output) in pairs {
             assert_eq!(input.as_clock().as_str(), output);
+        }
+    }
+
+    #[test]
+    fn as_hf_bytes_format() {
+        let pairs: Vec<(usize, &str)> = vec![
+            (1023, "1023 B"),
+            (1025, "1 KB"),
+            (usize::pow(1024, 2), "1 MB"),
+            (usize::pow(1024, 3), "1 GB"),
+        ];
+
+        for (input, output) in pairs {
+            assert_eq!(input.as_hf_bytes(), output);
         }
     }
 }
