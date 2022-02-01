@@ -1,63 +1,9 @@
 use crossbeam::channel::{bounded, unbounded};
-use crossbeam::channel::{Receiver, Sender};
+use naps::read::read_loop;
+use naps::write::write_loop;
 use naps::{args::Args, stats};
-use nats::Message;
-use std::io::{ErrorKind, Result};
-use std::{thread, time};
-
-pub struct Msg {
-    data: Vec<u8>,
-    topic: String,
-}
-
-impl Msg {
-    pub fn new(data: Vec<u8>, topic: String) -> Self {
-        Self { topic, data }
-    }
-}
-
-pub fn read_loop(
-    nats: String,
-    topics: Vec<String>,
-    stats_sc: Sender<usize>,
-    write_sc: Sender<Msg>,
-) -> Result<()> {
-    let nc = nats::connect(nats)?;
-    println!("source connected");
-
-    for topic in topics.iter() {
-        let stats = stats_sc.clone();
-        let write = write_sc.clone();
-        nc.subscribe(topic)?.with_handler(move |msg: Message| {
-            let _ = stats.send(msg.data.len());
-            let _ = write.send(Msg::new(msg.data, msg.subject));
-
-            Ok(())
-        });
-    }
-
-    let pause = time::Duration::from_secs(1);
-
-    loop {
-        thread::sleep(pause);
-    }
-}
-
-pub fn write_loop(nats: String, receiver: Receiver<Msg>) -> Result<()> {
-    let nc = nats::connect(nats)?;
-    println!("target connected");
-
-    loop {
-        let msg = receiver.recv().unwrap();
-
-        if let Err(e) = nc.publish(&msg.topic, &msg.data) {
-            println!("{}", e);
-            if e.kind() == ErrorKind::ConnectionAborted {
-                return Err(e);
-            }
-        }
-    }
-}
+use std::io::Result;
+use std::thread;
 
 fn main() -> Result<()> {
     let args = Args::parse();
