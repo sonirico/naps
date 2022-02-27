@@ -13,6 +13,8 @@ canceled order in our shopping platform:
 ./naps --source nats://aws:4222 --destination nats://aks:4222 --topics "orders.>"
 ```
 
+### Processing Example
+
 If the `--script` flag is present, `naps` will spawn a `Deno` runtime with all v8
 capabilities plus promises and all event loop goodies, allowing you to, for example, only
 keep the _confirmed_ ones and  relay them to the `myapp.orders.confirmed`. You only have to code a `recv` function
@@ -34,7 +36,7 @@ function recv(topic: string, data: Uint8Array): boolean | RecvResult {
 - If the function returns `false`, this message will be discarded
 - Finally, when `RecvResult` is returned, that data will be sent over the nats wire.
 
-### Processing Example
+Example command:
 
 ```sh
 ./naps --source nats://aws:4222 --destination nats://aks:4222 --topics "myapp.v1.orders" --script "
