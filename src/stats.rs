@@ -1,4 +1,4 @@
-use crossbeam::channel::Receiver;
+use crossbeam::channel::{select, Receiver};
 use crossterm::{
     cursor, execute,
     style::{self, Color, PrintStyledContent, Stylize},
@@ -6,17 +6,25 @@ use crossterm::{
 };
 
 use std::io::{self, Result, Stderr, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Instant;
+use std::u64;
 
 use crate::timer::Timer;
 
-pub fn stats_loop(silent: bool, receiver: Receiver<usize>) -> Result<()> {
+pub fn stats_loop(
+    silent: bool,
+    stats_rc: Receiver<u64>,
+    shutdown_arc: Arc<AtomicBool>,
+) -> Result<()> {
     let mut total_bytes = 0;
     let start = Instant::now();
     let mut timer = Timer::new();
     let mut stderr = io::stderr();
-    loop {
-        let num_bytes = receiver.recv().unwrap();
+
+    while !shutdown_arc.load(Ordering::Relaxed) {
+        let num_bytes = stats_rc.recv().unwrap();
         total_bytes += num_bytes;
         timer.tick();
         let rate_per_second = num_bytes as f64 / timer.delta.as_secs_f64();
@@ -33,13 +41,17 @@ pub fn stats_loop(silent: bool, receiver: Receiver<usize>) -> Result<()> {
             break;
         }
     }
+
     if !silent {
         eprintln!();
     }
+
+    eprintln!("stats loop exited");
+
     Ok(())
 }
 
-fn output_progress(stderr: &mut Stderr, bytes: usize, elapsed: String, rate: f64) {
+fn output_progress(stderr: &mut Stderr, bytes: u64, elapsed: String, rate: f64) {
     let bytes = style::style(format!("{} ", bytes.as_hf_bytes())).with(Color::Red);
     let elapsed = style::style(elapsed).with(Color::Green);
     let rate = style::style(format!(" [{:.0}b/s]", rate)).with(Color::Blue);
@@ -89,12 +101,13 @@ pub trait HumanFriendlyBytes {
     fn as_hf_bytes(&self) -> String;
 }
 
-impl HumanFriendlyBytes for usize {
+impl HumanFriendlyBytes for u64 {
     fn as_hf_bytes(&self) -> String {
-        let byte_mul: Vec<(usize, &str)> = vec![
-            (usize::pow(1024, 3), "GB"),
-            (usize::pow(1024, 2), "MB"),
-            (usize::pow(1024, 1), "KB"),
+        let byte_mul: Vec<(u64, &str)> = vec![
+            (u64::pow(1024, 4), "TB"),
+            (u64::pow(1024, 3), "GB"),
+            (u64::pow(1024, 2), "MB"),
+            (u64::pow(1024, 1), "KB"),
         ];
 
         let v = *self;
@@ -102,7 +115,7 @@ impl HumanFriendlyBytes for usize {
         for (mul, unit) in byte_mul.iter() {
             let c = v / mul;
             if c > 0 {
-                return format!("{} {}", c, unit);
+                return format!("{:.2} {}", c, unit);
             }
         }
 
@@ -132,11 +145,11 @@ mod tests {
 
     #[test]
     fn as_hf_bytes_format() {
-        let pairs: Vec<(usize, &str)> = vec![
+        let pairs: Vec<(u64, &str)> = vec![
             (1023, "1023 B"),
             (1025, "1 KB"),
-            (usize::pow(1024, 2), "1 MB"),
-            (usize::pow(1024, 3), "1 GB"),
+            (u64::pow(1024, 2), "1 MB"),
+            (u64::pow(1024, 3), "1 GB"),
         ];
 
         for (input, output) in pairs {

@@ -5,6 +5,7 @@ pub struct Args {
     pub source: String,
     pub target: String,
     pub topics: Vec<String>,
+    pub script: String,
     pub quiet: bool,
 }
 
@@ -40,6 +41,12 @@ impl Args {
                     .help("Topics to relay"),
             )
             .arg(
+                Arg::new("script")
+                    .long("script")
+                    .takes_value(true)
+                    .help("JS script as processor"),
+            )
+            .arg(
                 Arg::new("quiet")
                     .short('q')
                     .long("quiet")
@@ -58,12 +65,18 @@ impl Args {
             .map(|&x| String::from(x))
             .collect::<Vec<String>>();
         let quiet = matches.is_present("quiet");
+        let script = matches.value_of("script").unwrap_or_default().to_string();
 
         Self {
             source,
             target,
             topics,
+            script,
             quiet,
         }
+    }
+
+    pub fn has_script(&self) -> bool {
+        return !self.script.is_empty();
     }
 }
