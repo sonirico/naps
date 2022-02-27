@@ -1,6 +1,6 @@
 [package]
 name = "naps"
-version = "0.1.1"
+version = "0.2.1"
 edition = "2021"
 description = "NATS server proxy service to relay and forward custom topics and subjects"
 homepage = "https://github.com/sonirico/naps"
