@@ -178,6 +178,11 @@ async fn wait_delivered_and_acked(consumer: &mut PullConsumer) {
     .expect("input acked in time");
 }
 
+async fn stop_test_pipeline(pipeline: TestPipeline) {
+    pipeline.cancel.cancel();
+    pipeline.route.await.expect("join").expect("route");
+}
+
 #[tokio::test]
 async fn test_jetstream_source_delivers_and_acks() {
     let mut pipeline = new_test_pipeline(None).await;
@@ -191,8 +196,7 @@ async fn test_jetstream_source_delivers_and_acks() {
     );
     wait_delivered_and_acked(&mut pipeline.in_consumer).await;
     assert_eq!(pipeline.in_consumer.cached_info().num_ack_pending, 0);
-    pipeline.cancel.cancel();
-    pipeline.route.await.expect("join").expect("route");
+    stop_test_pipeline(pipeline).await;
 }
 
 #[tokio::test]
@@ -203,8 +207,7 @@ async fn test_jetstream_source_acks_zero_outputs() {
 
     wait_delivered_and_acked(&mut pipeline.in_consumer).await;
     assert_eq!(pipeline.in_consumer.cached_info().num_ack_pending, 0);
-    pipeline.cancel.cancel();
-    pipeline.route.await.expect("join").expect("route");
+    stop_test_pipeline(pipeline).await;
 }
 
 #[tokio::test]
@@ -228,8 +231,7 @@ async fn test_jetstream_source_naks_on_processing_error() {
             .consumer_sequence
             >= 2
     );
-    pipeline.cancel.cancel();
-    pipeline.route.await.expect("join").expect("route");
+    stop_test_pipeline(pipeline).await;
 }
 
 #[tokio::test]
