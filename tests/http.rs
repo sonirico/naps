@@ -115,6 +115,19 @@ async fn get_metrics(test: &TestHttp) -> String {
         .expect("metrics body")
 }
 
+async fn wait_metrics_contain(test: &TestHttp, needle: &str) -> String {
+    tokio::time::timeout(RECV_TIMEOUT, async {
+        loop {
+            let body = get_metrics(test).await;
+            if body.contains(needle) {
+                return body;
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("metrics never contained {needle}"))
+}
+
 #[tokio::test]
 async fn test_healthz_returns_ok() {
     let test = new_test_http().await;
@@ -154,13 +167,9 @@ async fn test_metrics_count_relayed_message() {
         .expect("relayed in time")
         .expect("subscription open");
 
-    let body = get_metrics(&test).await;
+    let body = wait_metrics_contain(&test, "naps_messages_out_total{route=\"t\"} 1").await;
     assert!(
         body.contains("naps_messages_in_total{route=\"t\"} 1"),
-        "{body}"
-    );
-    assert!(
-        body.contains("naps_messages_out_total{route=\"t\"} 1"),
         "{body}"
     );
 }
@@ -174,16 +183,5 @@ async fn test_metrics_count_process_error() {
         .publish("in.a", Bytes::from("hello"))
         .await
         .expect("publish");
-    let body = tokio::time::timeout(RECV_TIMEOUT, async {
-        loop {
-            let body = get_metrics(&test).await;
-            if body.contains("naps_errors_total{route=\"t\",stage=\"process\"} 1") {
-                return body;
-            }
-        }
-    })
-    .await
-    .expect("error counted in time");
-
-    assert!(body.contains("naps_errors_total{route=\"t\",stage=\"process\"} 1"));
+    wait_metrics_contain(&test, "naps_errors_total{route=\"t\",stage=\"process\"} 1").await;
 }
