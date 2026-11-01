@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use tracing::info;
+use naps::config::Config;
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -22,6 +23,15 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!(config = %cli.config.display(), "starting naps");
+
+    let config = match Config::load(&cli.config) {
+        Ok(config) => config,
+        Err(err) => {
+            error!(error = format!("{err:#}"), "invalid config");
+            std::process::exit(1);
+        }
+    };
+    info!(routes = config.routes.len(), "config loaded");
 
     Ok(())
 }

@@ -1,0 +1,9 @@
+source:
+  url: tls://nats:4222
+  tls:
+    cert_file: tests/fixtures/config/noop.ts
+destination:
+  url: nats://nats:4222
+routes:
+  - name: orders
+    from: {subject: "a"}
