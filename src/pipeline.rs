@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::mpsc::{SyncSender, sync_channel};
+use std::time::Instant;
 
 use anyhow::{Context, anyhow, bail};
 use async_nats::HeaderMap;
@@ -11,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
 use crate::config::{From, Mode, Route};
+use crate::metrics::{ErrorLabels, Metrics, RouteLabels, STAGE_PROCESS, STAGE_PUBLISH};
 use crate::msg::Msg;
 use crate::processor::{Output, new_processor};
 
@@ -30,6 +33,7 @@ struct RouteCtx<'a> {
     route: &'a Route,
     processor: Option<&'a SyncSender<ProcessorRequest>>,
     destination: &'a Destination,
+    metrics: &'a Metrics,
 }
 
 pub async fn run_route(
@@ -38,6 +42,7 @@ pub async fn run_route(
     destination: async_nats::Client,
     cancel: CancellationToken,
     ready: oneshot::Sender<()>,
+    metrics: Arc<Metrics>,
 ) -> anyhow::Result<()> {
     let processor = match &route.processor {
         Some(path) => Some(spawn_processor(&route.name, path).await?),
@@ -51,6 +56,7 @@ pub async fn run_route(
         route: &route,
         processor: processor.as_ref(),
         destination: &destination,
+        metrics: &metrics,
     };
 
     match &route.from {
@@ -203,36 +209,77 @@ async fn spawn_processor(name: &str, path: &Path) -> anyhow::Result<SyncSender<P
 }
 
 async fn relay(ctx: &RouteCtx<'_>, msg: Msg) -> anyhow::Result<()> {
+    let route_labels = RouteLabels {
+        route: ctx.route.name.clone(),
+    };
+    ctx.metrics.messages_in.get_or_create(&route_labels).inc();
+
     let outputs = match ctx.processor {
-        Some(requests) => process(requests, msg).await?,
+        Some(requests) => {
+            let started = Instant::now();
+            let result = process(requests, msg).await;
+            ctx.metrics
+                .process_duration
+                .get_or_create(&route_labels)
+                .observe(started.elapsed().as_secs_f64());
+            match result {
+                Ok(outputs) => outputs,
+                Err(err) => {
+                    ctx.metrics
+                        .errors
+                        .get_or_create(&new_error_labels(ctx, STAGE_PROCESS))
+                        .inc();
+                    return Err(err);
+                }
+            }
+        }
         None => vec![Output {
             msg,
             subject_set: false,
         }],
     };
 
+    if outputs.is_empty() {
+        ctx.metrics
+            .messages_dropped
+            .get_or_create(&route_labels)
+            .inc();
+    }
+
     for output in outputs {
-        let subject = match (&ctx.route.to.subject, output.subject_set) {
-            (Some(to_subject), false) => to_subject.clone(),
-            _ => output.msg.subject,
-        };
-        let headers = new_header_map(&output.msg.headers);
-        match ctx.route.to.mode {
-            Mode::Core => ctx
-                .destination
-                .core
+        if let Err(err) = publish(ctx, output).await {
+            ctx.metrics
+                .errors
+                .get_or_create(&new_error_labels(ctx, STAGE_PUBLISH))
+                .inc();
+            return Err(err);
+        }
+        ctx.metrics.messages_out.get_or_create(&route_labels).inc();
+    }
+    Ok(())
+}
+
+async fn publish(ctx: &RouteCtx<'_>, output: Output) -> anyhow::Result<()> {
+    let subject = match (&ctx.route.to.subject, output.subject_set) {
+        (Some(to_subject), false) => to_subject.clone(),
+        _ => output.msg.subject,
+    };
+    let headers = new_header_map(&output.msg.headers);
+    match ctx.route.to.mode {
+        Mode::Core => ctx
+            .destination
+            .core
+            .publish_with_headers(subject, headers, output.msg.data)
+            .await
+            .context("publish")?,
+        Mode::Jetstream => {
+            ctx.destination
+                .jetstream
                 .publish_with_headers(subject, headers, output.msg.data)
                 .await
-                .context("publish")?,
-            Mode::Jetstream => {
-                ctx.destination
-                    .jetstream
-                    .publish_with_headers(subject, headers, output.msg.data)
-                    .await
-                    .context("publish")?
-                    .await
-                    .context("publish ack")?;
-            }
+                .context("publish")?
+                .await
+                .context("publish ack")?;
         }
     }
     Ok(())
@@ -247,6 +294,13 @@ async fn process(requests: &SyncSender<ProcessorRequest>, msg: Msg) -> anyhow::R
         .await
         .map_err(|_| anyhow!("processor thread stopped"))?
         .context("process")
+}
+
+fn new_error_labels(ctx: &RouteCtx<'_>, stage: &'static str) -> ErrorLabels {
+    ErrorLabels {
+        route: ctx.route.name.clone(),
+        stage,
+    }
 }
 
 fn new_msg(message: async_nats::Message) -> Msg {

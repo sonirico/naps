@@ -2,6 +2,7 @@
 mod common;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_nats::Subscriber;
@@ -11,6 +12,7 @@ use common::{TestNats, TestNatsOpts, new_test_nats};
 use futures::StreamExt;
 use naps::config::{Connection, From, Mode, Route, To};
 use naps::connect::connect;
+use naps::metrics::Metrics;
 use naps::pipeline::run_route;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -131,6 +133,7 @@ async fn new_test_pipeline(processor: Option<&str>) -> TestPipeline {
         js.client.clone(),
         cancel.clone(),
         ready,
+        Arc::new(Metrics::new()),
     ));
     wait_route_ready(ready_rx).await;
     TestPipeline {
@@ -255,6 +258,7 @@ async fn test_jetstream_destination_stores_message() {
         js.client.clone(),
         cancel.clone(),
         ready,
+        Arc::new(Metrics::new()),
     ));
     wait_route_ready(ready_rx).await;
 
@@ -296,6 +300,7 @@ async fn test_missing_consumer_returns_err_without_ready() {
         js.client.clone(),
         CancellationToken::new(),
         ready,
+        Arc::new(Metrics::new()),
     )
     .await;
 

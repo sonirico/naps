@@ -1,8 +1,12 @@
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use clap::Parser;
 use naps::config::Config;
 use naps::connect::connect;
+use naps::http::{HttpState, serve};
+use naps::metrics::Metrics;
 use naps::pipeline::run_route;
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::oneshot;
@@ -55,16 +59,39 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let cancel = CancellationToken::new();
+    let http_cancel = CancellationToken::new();
+    let metrics = Arc::new(Metrics::new());
+    let draining = Arc::new(AtomicBool::new(false));
+
+    let listener = match tokio::net::TcpListener::bind(config.http.listen).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            error!(error = format!("{err:#}"), listen = %config.http.listen, "bind http");
+            std::process::exit(1);
+        }
+    };
+    let http = tokio::spawn(serve(
+        listener,
+        HttpState {
+            source: source.clone(),
+            destination: destination.clone(),
+            metrics: metrics.clone(),
+            draining: draining.clone(),
+        },
+        http_cancel.clone(),
+    ));
 
     let mut sigterm = signal(SignalKind::terminate())?;
     let mut sigint = signal(SignalKind::interrupt())?;
     let signal_cancel = cancel.clone();
+    let signal_draining = draining.clone();
     tokio::spawn(async move {
         tokio::select! {
             _ = sigterm.recv() => {}
             _ = sigint.recv() => {}
         }
         info!("shutdown signal received");
+        signal_draining.store(true, Ordering::SeqCst);
         signal_cancel.cancel();
     });
 
@@ -77,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             destination.clone(),
             cancel.clone(),
             ready,
+            metrics.clone(),
         ));
     }
 
@@ -100,6 +128,13 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Err(err) = destination.drain().await {
         error!(error = format!("{err:#}"), "drain destination");
+    }
+
+    http_cancel.cancel();
+    match http.await {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => error!(error = format!("{err:#}"), "http server"),
+        Err(err) => error!(error = format!("{err:#}"), "http task"),
     }
 
     if failed {

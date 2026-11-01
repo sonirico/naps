@@ -2,6 +2,7 @@
 mod common;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_nats::Subscriber;
@@ -10,6 +11,7 @@ use common::{TestNats, TestNatsOpts, new_test_nats};
 use futures::StreamExt;
 use naps::config::{Connection, From, Mode, Route, To};
 use naps::connect::connect;
+use naps::metrics::Metrics;
 use naps::pipeline::run_route;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -71,6 +73,7 @@ async fn new_test_pipeline(processor: Option<&str>, to_subject: &str) -> TestPip
         client.clone(),
         cancel.clone(),
         ready,
+        Arc::new(Metrics::new()),
     ));
     wait_route_ready(ready_rx).await;
     TestPipeline {
@@ -169,6 +172,7 @@ async fn test_queue_group_delivers_each_message_once() {
         pipeline.client.clone(),
         pipeline.cancel.clone(),
         ready,
+        Arc::new(Metrics::new()),
     ));
     wait_route_ready(ready_rx).await;
     let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
@@ -212,6 +216,7 @@ async fn test_startup_failure_returns_err_without_ready() {
         client.clone(),
         CancellationToken::new(),
         ready,
+        Arc::new(Metrics::new()),
     )
     .await;
 
