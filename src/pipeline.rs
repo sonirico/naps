@@ -4,6 +4,7 @@ use std::sync::mpsc::{SyncSender, sync_channel};
 
 use anyhow::{Context, anyhow, bail};
 use async_nats::HeaderMap;
+use async_nats::jetstream::{self, AckKind, consumer::pull};
 use futures::StreamExt;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
@@ -14,6 +15,11 @@ use crate::msg::Msg;
 use crate::processor::{Output, new_processor};
 
 const PROCESSOR_QUEUE_SIZE: usize = 64;
+
+struct Destination {
+    core: async_nats::Client,
+    jetstream: jetstream::Context,
+}
 
 struct ProcessorRequest {
     msg: Msg,
@@ -27,24 +33,61 @@ pub async fn run_route(
     cancel: CancellationToken,
     ready: oneshot::Sender<()>,
 ) -> anyhow::Result<()> {
-    let From::Subject {
-        subject,
-        queue_group,
-    } = &route.from
-    else {
-        bail!("jetstream not supported yet");
-    };
-    if route.to.mode == Mode::Jetstream {
-        bail!("jetstream not supported yet");
-    }
-
     let processor = match &route.processor {
         Some(path) => Some(spawn_processor(&route.name, path).await?),
         None => None,
     };
+    let destination = Destination {
+        core: destination.clone(),
+        jetstream: jetstream::new(destination),
+    };
 
+    match &route.from {
+        From::Subject {
+            subject,
+            queue_group,
+        } => {
+            consume_subject(
+                &route,
+                subject,
+                queue_group,
+                processor.as_ref(),
+                &source,
+                &destination,
+                cancel,
+                ready,
+            )
+            .await
+        }
+        From::Jetstream { stream, consumer } => {
+            consume_jetstream(
+                &route,
+                stream,
+                consumer,
+                processor.as_ref(),
+                &source,
+                &destination,
+                cancel,
+                ready,
+            )
+            .await
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn consume_subject(
+    route: &Route,
+    subject: &str,
+    queue_group: &str,
+    processor: Option<&SyncSender<ProcessorRequest>>,
+    source: &async_nats::Client,
+    destination: &Destination,
+    cancel: CancellationToken,
+    ready: oneshot::Sender<()>,
+) -> anyhow::Result<()> {
     let mut subscription = source
-        .queue_subscribe(subject.clone(), queue_group.clone())
+        .queue_subscribe(subject.to_string(), queue_group.to_string())
         .await
         .with_context(|| format!("subscribe route {} to {subject}", route.name))?;
 
@@ -67,8 +110,72 @@ pub async fn run_route(
                     bail!("subscription closed for route {}", route.name);
                 };
                 let msg = new_msg(message);
-                if let Err(err) = relay(&route, processor.as_ref(), &destination, msg).await {
+                if let Err(err) = relay(route, processor, destination, msg).await {
                     warn!(route = route.name, error = format!("{err:#}"), "message dropped");
+                }
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn consume_jetstream(
+    route: &Route,
+    stream: &str,
+    consumer: &str,
+    processor: Option<&SyncSender<ProcessorRequest>>,
+    source: &async_nats::Client,
+    destination: &Destination,
+    cancel: CancellationToken,
+    ready: oneshot::Sender<()>,
+) -> anyhow::Result<()> {
+    let bound = jetstream::new(source.clone())
+        .get_stream(stream)
+        .await
+        .with_context(|| format!("get stream {stream} for route {}", route.name))?
+        .get_consumer::<pull::Config>(consumer)
+        .await
+        .map_err(|err| anyhow!(err))
+        .with_context(|| {
+            format!(
+                "get consumer {consumer} of stream {stream} for route {}",
+                route.name
+            )
+        })?;
+    let mut messages = bound.messages().await.with_context(|| {
+        format!(
+            "consume consumer {consumer} of stream {stream} for route {}",
+            route.name
+        )
+    })?;
+    if ready.send(()).is_err() {
+        debug!(route = %route.name, "ready receiver dropped");
+    }
+
+    loop {
+        tokio::select! {
+            _ = cancel.cancelled() => return Ok(()),
+            next = messages.next() => {
+                let Some(next) = next else {
+                    bail!("message stream closed for route {}", route.name);
+                };
+                let message = match next {
+                    Ok(message) => message,
+                    Err(err) => {
+                        warn!(route = route.name, error = format!("{err:#}"), "message stream error");
+                        continue;
+                    }
+                };
+                let msg = new_msg(message.message.clone());
+                let kind = match relay(route, processor, destination, msg).await {
+                    Ok(()) => AckKind::Ack,
+                    Err(err) => {
+                        warn!(route = route.name, error = format!("{err:#}"), "message nacked");
+                        AckKind::Nak(None)
+                    }
+                };
+                if let Err(err) = message.ack_with(kind).await {
+                    warn!(route = route.name, error = format!("{err:#}"), "ack failed");
                 }
             }
         }
@@ -115,7 +222,7 @@ async fn spawn_processor(name: &str, path: &Path) -> anyhow::Result<SyncSender<P
 async fn relay(
     route: &Route,
     processor: Option<&SyncSender<ProcessorRequest>>,
-    destination: &async_nats::Client,
+    destination: &Destination,
     msg: Msg,
 ) -> anyhow::Result<()> {
     let outputs = match processor {
@@ -131,14 +238,23 @@ async fn relay(
             (Some(to_subject), false) => to_subject.clone(),
             _ => output.msg.subject,
         };
-        destination
-            .publish_with_headers(
-                subject,
-                new_header_map(&output.msg.headers),
-                output.msg.data,
-            )
-            .await
-            .context("publish")?;
+        let headers = new_header_map(&output.msg.headers);
+        match route.to.mode {
+            Mode::Core => destination
+                .core
+                .publish_with_headers(subject, headers, output.msg.data)
+                .await
+                .context("publish")?,
+            Mode::Jetstream => {
+                destination
+                    .jetstream
+                    .publish_with_headers(subject, headers, output.msg.data)
+                    .await
+                    .context("publish")?
+                    .await
+                    .context("publish ack")?;
+            }
+        }
     }
     Ok(())
 }
