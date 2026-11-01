@@ -1,4 +1,5 @@
 mod js;
+mod lua;
 
 use std::path::Path;
 
@@ -20,6 +21,7 @@ pub fn new_processor(path: &Path) -> anyhow::Result<Box<dyn Processor>> {
     let ext = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
     match ext {
         "ts" | "js" => Ok(Box::new(js::JsProcessor::new(path)?)),
+        "lua" => Ok(Box::new(lua::LuaProcessor::new(path)?)),
         _ => bail!("unsupported processor extension: {ext}"),
     }
 }

@@ -30,6 +30,7 @@ oxc_codegen = "=0.156.0"
 oxc_span = "=0.156.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+mlua = { version = "0.12", features = ["luau", "vendored"] }
 
 [dev-dependencies]
 rcgen = "0.14.10"
