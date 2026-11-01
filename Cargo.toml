@@ -23,3 +23,8 @@ serde = { version = "1", features = ["derive"] }
 serde_norway = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+[dev-dependencies]
+rcgen = "0.14.10"
+tempfile = "3"
+testcontainers = "0.28.0"
