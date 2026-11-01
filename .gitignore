@@ -1,3 +1,4 @@
 /target
 .test
 .idea
+tests/fixtures/wasm-recv/target
