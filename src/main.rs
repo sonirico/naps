@@ -2,6 +2,11 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use naps::config::Config;
+use naps::connect::connect;
+use naps::pipeline::run_route;
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::task::JoinSet;
+use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
@@ -33,5 +38,69 @@ async fn main() -> anyhow::Result<()> {
     };
     info!(routes = config.routes.len(), "config loaded");
 
+    let source = match connect(&config.source, "naps-source").await {
+        Ok(client) => client,
+        Err(err) => {
+            error!(error = format!("{err:#}"), "connect source");
+            std::process::exit(1);
+        }
+    };
+    let destination = match connect(&config.destination, "naps-destination").await {
+        Ok(client) => client,
+        Err(err) => {
+            error!(error = format!("{err:#}"), "connect destination");
+            std::process::exit(1);
+        }
+    };
+
+    let cancel = CancellationToken::new();
+
+    let mut sigterm = signal(SignalKind::terminate())?;
+    let mut sigint = signal(SignalKind::interrupt())?;
+    let signal_cancel = cancel.clone();
+    tokio::spawn(async move {
+        tokio::select! {
+            _ = sigterm.recv() => {}
+            _ = sigint.recv() => {}
+        }
+        info!("shutdown signal received");
+        signal_cancel.cancel();
+    });
+
+    let mut routes = JoinSet::new();
+    for route in config.routes {
+        routes.spawn(run_route(
+            route,
+            source.clone(),
+            destination.clone(),
+            cancel.clone(),
+        ));
+    }
+
+    let mut failed = false;
+    while let Some(joined) = routes.join_next().await {
+        let result = joined
+            .map_err(anyhow::Error::from)
+            .and_then(|result| result);
+        if let Err(err) = result {
+            error!(error = format!("{err:#}"), "route failed");
+            failed = true;
+            cancel.cancel();
+        }
+    }
+
+    if let Err(err) = destination.flush().await {
+        error!(error = format!("{err:#}"), "flush destination");
+    }
+    if let Err(err) = source.drain().await {
+        error!(error = format!("{err:#}"), "drain source");
+    }
+    if let Err(err) = destination.drain().await {
+        error!(error = format!("{err:#}"), "drain destination");
+    }
+
+    if failed {
+        std::process::exit(1);
+    }
     Ok(())
 }
