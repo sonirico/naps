@@ -237,4 +237,13 @@ mod tests {
             assert!(result.is_err(), "{fixture} should fail");
         }
     }
+
+    #[test]
+    fn process_fails_when_script_mutates_shared_library() {
+        let mut processor = LuaProcessor::new(&fixture_path("mutates_string_lib.lua")).unwrap();
+
+        let result = processor.process(new_test_input());
+
+        assert!(result.is_err());
+    }
 }
