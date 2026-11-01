@@ -26,6 +26,12 @@ struct ProcessorRequest {
     reply: oneshot::Sender<anyhow::Result<Vec<Output>>>,
 }
 
+struct RouteCtx<'a> {
+    route: &'a Route,
+    processor: Option<&'a SyncSender<ProcessorRequest>>,
+    destination: &'a Destination,
+}
+
 pub async fn run_route(
     route: Route,
     source: async_nats::Client,
@@ -41,62 +47,42 @@ pub async fn run_route(
         core: destination.clone(),
         jetstream: jetstream::new(destination),
     };
+    let ctx = RouteCtx {
+        route: &route,
+        processor: processor.as_ref(),
+        destination: &destination,
+    };
 
     match &route.from {
         From::Subject {
             subject,
             queue_group,
-        } => {
-            consume_subject(
-                &route,
-                subject,
-                queue_group,
-                processor.as_ref(),
-                &source,
-                &destination,
-                cancel,
-                ready,
-            )
-            .await
-        }
+        } => consume_subject(&ctx, subject, queue_group, &source, cancel, ready).await,
         From::Jetstream { stream, consumer } => {
-            consume_jetstream(
-                &route,
-                stream,
-                consumer,
-                processor.as_ref(),
-                &source,
-                &destination,
-                cancel,
-                ready,
-            )
-            .await
+            consume_jetstream(&ctx, stream, consumer, &source, cancel, ready).await
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn consume_subject(
-    route: &Route,
+    ctx: &RouteCtx<'_>,
     subject: &str,
     queue_group: &str,
-    processor: Option<&SyncSender<ProcessorRequest>>,
     source: &async_nats::Client,
-    destination: &Destination,
     cancel: CancellationToken,
     ready: oneshot::Sender<()>,
 ) -> anyhow::Result<()> {
     let mut subscription = source
         .queue_subscribe(subject.to_string(), queue_group.to_string())
         .await
-        .with_context(|| format!("subscribe route {} to {subject}", route.name))?;
+        .with_context(|| format!("subscribe route {} to {subject}", ctx.route.name))?;
 
     source
         .flush()
         .await
-        .with_context(|| format!("flush subscription for route {}", route.name))?;
+        .with_context(|| format!("flush subscription for route {}", ctx.route.name))?;
     if ready.send(()).is_err() {
-        debug!(route = %route.name, "ready receiver dropped");
+        debug!(route = %ctx.route.name, "ready receiver dropped");
     }
 
     loop {
@@ -107,49 +93,46 @@ async fn consume_subject(
             }
             next = subscription.next() => {
                 let Some(message) = next else {
-                    bail!("subscription closed for route {}", route.name);
+                    bail!("subscription closed for route {}", ctx.route.name);
                 };
                 let msg = new_msg(message);
-                if let Err(err) = relay(route, processor, destination, msg).await {
-                    warn!(route = route.name, error = format!("{err:#}"), "message dropped");
+                if let Err(err) = relay(ctx, msg).await {
+                    warn!(route = ctx.route.name, error = format!("{err:#}"), "message dropped");
                 }
             }
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn consume_jetstream(
-    route: &Route,
+    ctx: &RouteCtx<'_>,
     stream: &str,
     consumer: &str,
-    processor: Option<&SyncSender<ProcessorRequest>>,
     source: &async_nats::Client,
-    destination: &Destination,
     cancel: CancellationToken,
     ready: oneshot::Sender<()>,
 ) -> anyhow::Result<()> {
     let bound = jetstream::new(source.clone())
         .get_stream(stream)
         .await
-        .with_context(|| format!("get stream {stream} for route {}", route.name))?
+        .with_context(|| format!("get stream {stream} for route {}", ctx.route.name))?
         .get_consumer::<pull::Config>(consumer)
         .await
         .map_err(|err| anyhow!(err))
         .with_context(|| {
             format!(
                 "get consumer {consumer} of stream {stream} for route {}",
-                route.name
+                ctx.route.name
             )
         })?;
     let mut messages = bound.messages().await.with_context(|| {
         format!(
             "consume consumer {consumer} of stream {stream} for route {}",
-            route.name
+            ctx.route.name
         )
     })?;
     if ready.send(()).is_err() {
-        debug!(route = %route.name, "ready receiver dropped");
+        debug!(route = %ctx.route.name, "ready receiver dropped");
     }
 
     loop {
@@ -157,25 +140,25 @@ async fn consume_jetstream(
             _ = cancel.cancelled() => return Ok(()),
             next = messages.next() => {
                 let Some(next) = next else {
-                    bail!("message stream closed for route {}", route.name);
+                    bail!("message stream closed for route {}", ctx.route.name);
                 };
                 let message = match next {
                     Ok(message) => message,
                     Err(err) => {
-                        warn!(route = route.name, error = format!("{err:#}"), "message stream error");
+                        warn!(route = ctx.route.name, error = format!("{err:#}"), "message stream error");
                         continue;
                     }
                 };
                 let msg = new_msg(message.message.clone());
-                let kind = match relay(route, processor, destination, msg).await {
+                let kind = match relay(ctx, msg).await {
                     Ok(()) => AckKind::Ack,
                     Err(err) => {
-                        warn!(route = route.name, error = format!("{err:#}"), "message nacked");
+                        warn!(route = ctx.route.name, error = format!("{err:#}"), "message nacked");
                         AckKind::Nak(None)
                     }
                 };
                 if let Err(err) = message.ack_with(kind).await {
-                    warn!(route = route.name, error = format!("{err:#}"), "ack failed");
+                    warn!(route = ctx.route.name, error = format!("{err:#}"), "ack failed");
                 }
             }
         }
@@ -219,13 +202,8 @@ async fn spawn_processor(name: &str, path: &Path) -> anyhow::Result<SyncSender<P
     Ok(tx)
 }
 
-async fn relay(
-    route: &Route,
-    processor: Option<&SyncSender<ProcessorRequest>>,
-    destination: &Destination,
-    msg: Msg,
-) -> anyhow::Result<()> {
-    let outputs = match processor {
+async fn relay(ctx: &RouteCtx<'_>, msg: Msg) -> anyhow::Result<()> {
+    let outputs = match ctx.processor {
         Some(requests) => process(requests, msg).await?,
         None => vec![Output {
             msg,
@@ -234,19 +212,20 @@ async fn relay(
     };
 
     for output in outputs {
-        let subject = match (&route.to.subject, output.subject_set) {
+        let subject = match (&ctx.route.to.subject, output.subject_set) {
             (Some(to_subject), false) => to_subject.clone(),
             _ => output.msg.subject,
         };
         let headers = new_header_map(&output.msg.headers);
-        match route.to.mode {
-            Mode::Core => destination
+        match ctx.route.to.mode {
+            Mode::Core => ctx
+                .destination
                 .core
                 .publish_with_headers(subject, headers, output.msg.data)
                 .await
                 .context("publish")?,
             Mode::Jetstream => {
-                destination
+                ctx.destination
                     .jetstream
                     .publish_with_headers(subject, headers, output.msg.data)
                     .await
