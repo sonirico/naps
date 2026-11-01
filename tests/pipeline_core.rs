@@ -11,12 +11,10 @@ use futures::StreamExt;
 use naps::config::{Connection, From, Mode, Route, To};
 use naps::connect::connect;
 use naps::pipeline::run_route;
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-const PROBE_SUBJECT: &str = "in.probe";
-const PROBE_PAYLOAD: &str = "probe";
-const READY_TIMEOUT: Duration = Duration::from_secs(1);
 const RECV_TIMEOUT: Duration = Duration::from_secs(10);
 const SILENCE_TIMEOUT: Duration = Duration::from_millis(500);
 
@@ -55,31 +53,26 @@ async fn new_test_client(nats: &TestNats) -> async_nats::Client {
     connect(&conn, "naps-test").await.expect("connect")
 }
 
-async fn wait_route_subscribed(client: &async_nats::Client) {
-    loop {
-        match tokio::time::timeout(
-            READY_TIMEOUT,
-            client.request(PROBE_SUBJECT, Bytes::from(PROBE_PAYLOAD)),
-        )
+async fn wait_route_ready(ready: oneshot::Receiver<()>) {
+    tokio::time::timeout(RECV_TIMEOUT, ready)
         .await
-        {
-            Ok(Err(_)) => tokio::task::yield_now().await,
-            Ok(Ok(_)) | Err(_) => return,
-        }
-    }
+        .expect("route ready in time")
+        .expect("route ready");
 }
 
 async fn new_test_pipeline(processor: Option<&str>, to_subject: &str) -> TestPipeline {
     let nats = new_test_nats(TestNatsOpts::default()).await;
     let client = new_test_client(&nats).await;
     let cancel = CancellationToken::new();
+    let (ready, ready_rx) = oneshot::channel();
     let route = tokio::spawn(run_route(
         new_test_route(processor, to_subject),
         client.clone(),
         client.clone(),
         cancel.clone(),
+        ready,
     ));
-    wait_route_subscribed(&client).await;
+    wait_route_ready(ready_rx).await;
     TestPipeline {
         _nats: nats,
         client,
@@ -103,13 +96,8 @@ async fn publish_payload(client: &async_nats::Client, subject: &'static str, pay
 
 async fn next_payload(subscriber: &mut Subscriber, timeout: Duration) -> Option<String> {
     tokio::time::timeout(timeout, async {
-        loop {
-            let message = subscriber.next().await.expect("subscription open");
-            let payload = String::from_utf8(message.payload.to_vec()).expect("utf8 payload");
-            if payload != PROBE_PAYLOAD {
-                return payload;
-            }
-        }
+        let message = subscriber.next().await.expect("subscription open");
+        String::from_utf8(message.payload.to_vec()).expect("utf8 payload")
     })
     .await
     .ok()
@@ -174,12 +162,15 @@ async fn test_processor_null_delivers_nothing() {
 #[tokio::test]
 async fn test_queue_group_delivers_each_message_once() {
     let pipeline = new_test_pipeline(None, "out.a").await;
+    let (ready, ready_rx) = oneshot::channel();
     let second = tokio::spawn(run_route(
         new_test_route(None, "out.a"),
         pipeline.client.clone(),
         pipeline.client.clone(),
         pipeline.cancel.clone(),
+        ready,
     ));
+    wait_route_ready(ready_rx).await;
     let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
 
     for i in 0..10 {
@@ -207,4 +198,23 @@ async fn test_cancel_stops_route() {
 
     let result = pipeline.route.await.expect("join");
     assert!(result.is_ok(), "unexpected error: {result:?}");
+}
+
+#[tokio::test]
+async fn test_startup_failure_returns_err_without_ready() {
+    let nats = new_test_nats(TestNatsOpts::default()).await;
+    let client = new_test_client(&nats).await;
+    let (ready, ready_rx) = oneshot::channel();
+
+    let result = run_route(
+        new_test_route(Some("no_recv.js"), "out.a"),
+        client.clone(),
+        client.clone(),
+        CancellationToken::new(),
+        ready,
+    )
+    .await;
+
+    assert!(result.is_err(), "expected startup error");
+    assert!(ready_rx.await.is_err(), "ready must not fire");
 }

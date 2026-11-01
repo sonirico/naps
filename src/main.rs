@@ -5,6 +5,7 @@ use naps::config::Config;
 use naps::connect::connect;
 use naps::pipeline::run_route;
 use tokio::signal::unix::{SignalKind, signal};
+use tokio::sync::oneshot;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
@@ -69,11 +70,13 @@ async fn main() -> anyhow::Result<()> {
 
     let mut routes = JoinSet::new();
     for route in config.routes {
+        let (ready, _) = oneshot::channel();
         routes.spawn(run_route(
             route,
             source.clone(),
             destination.clone(),
             cancel.clone(),
+            ready,
         ));
     }
 

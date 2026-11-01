@@ -7,7 +7,7 @@ use async_nats::HeaderMap;
 use futures::StreamExt;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::config::{From, Mode, Route};
 use crate::msg::Msg;
@@ -25,6 +25,7 @@ pub async fn run_route(
     source: async_nats::Client,
     destination: async_nats::Client,
     cancel: CancellationToken,
+    ready: oneshot::Sender<()>,
 ) -> anyhow::Result<()> {
     let From::Subject {
         subject,
@@ -46,6 +47,14 @@ pub async fn run_route(
         .queue_subscribe(subject.clone(), queue_group.clone())
         .await
         .with_context(|| format!("subscribe route {} to {subject}", route.name))?;
+
+    source
+        .flush()
+        .await
+        .with_context(|| format!("flush subscription for route {}", route.name))?;
+    if ready.send(()).is_err() {
+        debug!(route = %route.name, "ready receiver dropped");
+    }
 
     loop {
         tokio::select! {
