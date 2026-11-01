@@ -88,6 +88,19 @@ async fn new_test_pipeline(processor: Option<&str>, to_subject: &str) -> TestPip
     }
 }
 
+async fn subscribe_flushed(client: &async_nats::Client, subject: &'static str) -> Subscriber {
+    let subscriber = client.subscribe(subject).await.expect("subscribe");
+    client.flush().await.expect("flush");
+    subscriber
+}
+
+async fn publish_payload(client: &async_nats::Client, subject: &'static str, payload: String) {
+    client
+        .publish(subject, Bytes::from(payload))
+        .await
+        .expect("publish");
+}
+
 async fn next_payload(subscriber: &mut Subscriber, timeout: Duration) -> Option<String> {
     tokio::time::timeout(timeout, async {
         loop {
@@ -105,14 +118,9 @@ async fn next_payload(subscriber: &mut Subscriber, timeout: Duration) -> Option<
 #[tokio::test]
 async fn test_relay_without_processor() {
     let pipeline = new_test_pipeline(None, "out.a").await;
-    let mut out = pipeline.client.subscribe("out.a").await.expect("subscribe");
-    pipeline.client.flush().await.expect("flush");
+    let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
 
-    pipeline
-        .client
-        .publish("in.a", Bytes::from("hello"))
-        .await
-        .expect("publish");
+    publish_payload(&pipeline.client, "in.a", "hello".to_string()).await;
 
     assert_eq!(
         next_payload(&mut out, RECV_TIMEOUT).await.as_deref(),
@@ -123,19 +131,10 @@ async fn test_relay_without_processor() {
 #[tokio::test]
 async fn test_processor_subject_wins_over_to_subject() {
     let pipeline = new_test_pipeline(Some("pipeline_subject.ts"), "out.ignored").await;
-    let mut out_c = pipeline.client.subscribe("out.c").await.expect("subscribe");
-    let mut ignored = pipeline
-        .client
-        .subscribe("out.ignored")
-        .await
-        .expect("subscribe");
-    pipeline.client.flush().await.expect("flush");
+    let mut out_c = subscribe_flushed(&pipeline.client, "out.c").await;
+    let mut ignored = subscribe_flushed(&pipeline.client, "out.ignored").await;
 
-    pipeline
-        .client
-        .publish("in.a", Bytes::from("hello"))
-        .await
-        .expect("publish");
+    publish_payload(&pipeline.client, "in.a", "hello".to_string()).await;
 
     assert_eq!(
         next_payload(&mut out_c, RECV_TIMEOUT).await.as_deref(),
@@ -147,14 +146,9 @@ async fn test_processor_subject_wins_over_to_subject() {
 #[tokio::test]
 async fn test_processor_fan_out() {
     let pipeline = new_test_pipeline(Some("pipeline_fan_out.ts"), "out.a").await;
-    let mut out = pipeline.client.subscribe("out.a").await.expect("subscribe");
-    pipeline.client.flush().await.expect("flush");
+    let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
 
-    pipeline
-        .client
-        .publish("in.a", Bytes::from("hello"))
-        .await
-        .expect("publish");
+    publish_payload(&pipeline.client, "in.a", "hello".to_string()).await;
 
     assert_eq!(
         next_payload(&mut out, RECV_TIMEOUT).await.as_deref(),
@@ -170,14 +164,9 @@ async fn test_processor_fan_out() {
 #[tokio::test]
 async fn test_processor_null_delivers_nothing() {
     let pipeline = new_test_pipeline(Some("pipeline_drop.ts"), "out.a").await;
-    let mut out = pipeline.client.subscribe("out.a").await.expect("subscribe");
-    pipeline.client.flush().await.expect("flush");
+    let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
 
-    pipeline
-        .client
-        .publish("in.a", Bytes::from("hello"))
-        .await
-        .expect("publish");
+    publish_payload(&pipeline.client, "in.a", "hello".to_string()).await;
 
     assert_eq!(next_payload(&mut out, SILENCE_TIMEOUT).await, None);
 }
@@ -191,15 +180,10 @@ async fn test_queue_group_delivers_each_message_once() {
         pipeline.client.clone(),
         pipeline.cancel.clone(),
     ));
-    let mut out = pipeline.client.subscribe("out.a").await.expect("subscribe");
-    pipeline.client.flush().await.expect("flush");
+    let mut out = subscribe_flushed(&pipeline.client, "out.a").await;
 
     for i in 0..10 {
-        pipeline
-            .client
-            .publish("in.a", Bytes::from(format!("m{i}")))
-            .await
-            .expect("publish");
+        publish_payload(&pipeline.client, "in.a", format!("m{i}")).await;
     }
 
     let mut received = Vec::new();
