@@ -2,6 +2,8 @@ check:
     cargo fmt --check
     cargo clippy --all-targets -- -D warnings
     cargo test
+    helm lint charts/naps
+    helm template charts/naps > /dev/null
 
 wasm-fixture:
     rustup target add wasm32-unknown-unknown
@@ -10,3 +12,6 @@ wasm-fixture:
 
 image:
     docker build -t naps:dev .
+
+e2e: image
+    bash e2e/run.sh
