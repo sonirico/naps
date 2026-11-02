@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["nats", "nats-io", "relay", "proxy", "forward"]
 categories = ["network-programming"]
 license = "MIT"
-exclude = ["tests/fixtures/wasm-recv"]
+exclude = [".github", "charts", "e2e", "tests", "Dockerfile", ".dockerignore", "justfile"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
