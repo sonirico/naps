@@ -32,6 +32,10 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .map_err(|_| anyhow::anyhow!("install rustls crypto provider"))?;
+
     info!(config = %cli.config.display(), "starting naps");
 
     let config = match Config::load(&cli.config) {

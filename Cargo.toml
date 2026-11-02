@@ -16,6 +16,7 @@ exclude = ["tests/fixtures/wasm-recv"]
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 async-nats = "0.51"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 futures = "0.3"
 bytes = "1"
 anyhow = "1"
