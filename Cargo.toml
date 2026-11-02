@@ -1,6 +1,6 @@
 [package]
 name = "naps"
-version = "1.0.0-dev"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.99"
 description = "NATS server proxy service to relay and forward custom topics and subjects"
