@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2.9.3
+      - uses: extractions/setup-just@v4
+      - uses: azure/setup-helm@v5.0.1
+      - run: just check
+
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: extractions/setup-just@v4
+      - uses: azure/setup-helm@v5.0.1
+      - uses: helm/kind-action@v1.15.1
+        with:
+          install_only: true
+      - run: just e2e
