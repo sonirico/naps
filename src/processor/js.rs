@@ -230,11 +230,17 @@ fn js_error(err: rquickjs::Error) -> anyhow::Error {
 
 fn caught_error(err: CaughtError<'_>) -> anyhow::Error {
     match err {
-        CaughtError::Exception(ex) => anyhow!(
-            "js exception: {}\n{}",
-            ex.message().unwrap_or_default(),
-            ex.stack().unwrap_or_default()
-        ),
+        CaughtError::Exception(ex) => {
+            let message = ex.message().unwrap_or_default();
+            let described = match ex.get::<_, Option<String>>("name") {
+                Ok(Some(name)) => format!("{name}: {message}"),
+                _ => message,
+            };
+            anyhow!(
+                "js exception: {described}\n{}",
+                ex.stack().unwrap_or_default()
+            )
+        }
         CaughtError::Value(value) => anyhow!("js exception: {value:?}"),
         CaughtError::Error(err) => js_error(err),
     }
@@ -407,7 +413,7 @@ mod tests {
         let err = processor.process(new_test_input()).unwrap_err();
 
         assert!(
-            err.to_string().contains("boom from script"),
+            err.to_string().contains("Error: boom from script"),
             "unexpected error: {err}"
         );
     }
