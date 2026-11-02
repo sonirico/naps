@@ -1,0 +1,9 @@
+source:
+  url: nats://nats:4222
+destination:
+  url: nats://nats:4222
+routes:
+  - name: orders
+    from: {subject: "a"}
+  - name: orders
+    from: {subject: "b"}

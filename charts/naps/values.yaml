@@ -1,0 +1,29 @@
+image:
+  repository: ghcr.io/sonirico/naps
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+config:
+  source:
+    url: nats://nats:4222
+  destination:
+    url: nats://nats:4222
+  routes:
+    - name: orders
+      from:
+        subject: "orders.>"
+      to:
+        mode: core
+        subject: "myapp.orders"
+
+scripts: {}
+
+binaryScripts: {}
+
+secretMounts: []
+
+resources: {}
+
+podAnnotations: {}

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "naps.fullname" . }}
+  labels:
+    {{- include "naps.labels" . | nindent 4 }}
+data:
+  naps.yaml: |
+    {{- toYaml .Values.config | nindent 4 }}
+  {{- range $name, $content := .Values.scripts }}
+  {{ $name | quote }}: |
+    {{- $content | nindent 4 }}
+  {{- end }}
+{{- with .Values.binaryScripts }}
+binaryData:
+  {{- range $name, $content := . }}
+  {{ $name | quote }}: {{ $content }}
+  {{- end }}
+{{- end }}

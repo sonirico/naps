@@ -1,0 +1,25 @@
+source:
+  url: nats://nats:4222
+destination:
+  url: nats://nats:4222
+routes:
+  - name: orders
+    from:
+      subject: "orders.>"
+    to:
+      mode: core
+      subject: "myapp.orders"
+  - name: orders-ts
+    from:
+      subject: "orders.ts.>"
+    processor: orders.ts
+    to:
+      mode: core
+      subject: "myapp.orders"
+  - name: orders-lua
+    from:
+      subject: "orders.lua.>"
+    processor: orders.lua
+    to:
+      mode: core
+      subject: "myapp.orders"

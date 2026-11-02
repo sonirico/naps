@@ -1,0 +1,18 @@
+image:
+  repository: naps
+  tag: dev
+  pullPolicy: Never
+
+config:
+  source:
+    url: nats://nats.default.svc:4222
+  destination:
+    url: nats://nats.default.svc:4222
+  routes:
+    - name: e2e
+      from:
+        subject: e2e.in
+      processor: upper.ts
+      to:
+        mode: core
+        subject: e2e.out
