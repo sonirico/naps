@@ -1,0 +1,156 @@
+name: release
+
+# release-plz keeps a release PR open on main. Merging it publishes the crate, tags vX.Y.Z and
+# creates the GitHub Release. Tags pushed with GITHUB_TOKEN do not trigger other workflows, so
+# binaries, image and chart are built here, gated on the release job's outputs.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5.148
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    outputs:
+      created: ${{ steps.release-plz.outputs.releases_created }}
+      tag: ${{ steps.release-plz.outputs.releases_created == 'true' && fromJSON(steps.release-plz.outputs.releases)[0].tag || '' }}
+      version: ${{ steps.release-plz.outputs.releases_created == 'true' && fromJSON(steps.release-plz.outputs.releases)[0].version || '' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: rust-lang/crates-io-auth-action@v1.0.6
+        id: auth
+      - uses: release-plz/action@v0.5.148
+        id: release-plz
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  binaries:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked
+      - name: Package
+        run: |
+          name=naps-${{ needs.release.outputs.tag }}-${{ matrix.target }}
+          mkdir "$name"
+          cp target/release/naps README.md LICENSE "$name/"
+          tar czf "$name.tar.gz" "$name"
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - uses: softprops/action-gh-release@v3.0.3
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: |
+            naps-*.tar.gz
+            naps-*.tar.gz.sha256
+
+  image:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/naps:${{ needs.release.outputs.version }}-${{ matrix.arch }}
+
+  image-manifest:
+    needs: [release, image]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge per-arch images
+        run: |
+          image=ghcr.io/${{ github.repository_owner }}/naps
+          version=${{ needs.release.outputs.version }}
+          docker buildx imagetools create \
+            -t "$image:$version" -t "$image:latest" \
+            "$image:$version-amd64" "$image:$version-arm64"
+
+  chart:
+    needs: [release, image-manifest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+      - uses: azure/setup-helm@v5.0.1
+      - name: Package and push chart
+        run: |
+          version=${{ needs.release.outputs.version }}
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm package charts/naps --version "$version" --app-version "$version"
+          helm push "naps-$version.tgz" oci://ghcr.io/${{ github.repository_owner }}/charts
