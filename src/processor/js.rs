@@ -434,6 +434,11 @@ mod tests {
     fn new_fails_on_import() {
         let result = JsProcessor::new(&fixture_path("with_import.js"));
 
-        assert!(result.is_err());
+        let err = result.err().expect("expected an error");
+        assert!(
+            err.to_string()
+                .contains("could not load module 'helper.js'"),
+            "unexpected error: {err}"
+        );
     }
 }
