@@ -10,8 +10,8 @@ use oxc_semantic::SemanticBuilder;
 use oxc_span::SourceType;
 use oxc_transformer::{TransformOptions, Transformer};
 use rquickjs::{
-    CatchResultExt, CaughtError, Context, Ctx, Function, Module, Object, Persistent, Runtime,
-    TypedArray, Value,
+    CatchResultExt, CaughtError, Context, Ctx, Exception, Function, Module, Object, Persistent,
+    Runtime, TypedArray, Value, function::Opt,
 };
 
 use super::{Output, Processor};
@@ -40,7 +40,10 @@ impl JsProcessor {
         let runtime = Runtime::new().context("create js runtime")?;
         runtime.set_memory_limit(MEMORY_LIMIT);
         let context = Context::full(&runtime).context("create js context")?;
-        let recv = context.with(|ctx| load_recv(&ctx, name, source))?;
+        let recv = context.with(|ctx| {
+            register_text_codecs(&ctx)?;
+            load_recv(&ctx, name, source)
+        })?;
 
         Ok(Self {
             recv,
@@ -84,6 +87,55 @@ fn strip_types(path: &Path, source: &str) -> anyhow::Result<String> {
     }
 
     Ok(Codegen::new().build(&program).code)
+}
+
+fn register_text_codecs(ctx: &Ctx<'_>) -> anyhow::Result<()> {
+    let encoder = Function::new(ctx.clone(), new_text_encoder)
+        .map_err(js_error)?
+        .with_constructor(true);
+    let decoder = Function::new(ctx.clone(), new_text_decoder)
+        .map_err(js_error)?
+        .with_constructor(true);
+    let globals = ctx.globals();
+    globals.set("TextEncoder", encoder).map_err(js_error)?;
+    globals.set("TextDecoder", decoder).map_err(js_error)?;
+    Ok(())
+}
+
+fn new_text_encoder<'js>(ctx: Ctx<'js>) -> rquickjs::Result<Object<'js>> {
+    let encoder = Object::new(ctx.clone())?;
+    encoder.set("encoding", "utf-8")?;
+    encoder.set(
+        "encode",
+        Function::new(ctx, |ctx: Ctx<'js>, text: String| {
+            TypedArray::<u8>::new_copy(ctx, text.as_bytes())
+        })?,
+    )?;
+    Ok(encoder)
+}
+
+fn new_text_decoder<'js>(ctx: Ctx<'js>, label: Opt<String>) -> rquickjs::Result<Object<'js>> {
+    if let Some(label) = label.0
+        && !label.eq_ignore_ascii_case("utf-8")
+        && !label.eq_ignore_ascii_case("utf8")
+    {
+        return Err(Exception::throw_range(
+            &ctx,
+            &format!("unsupported encoding label: {label}"),
+        ));
+    }
+    let decoder = Object::new(ctx.clone())?;
+    decoder.set("encoding", "utf-8")?;
+    decoder.set(
+        "decode",
+        Function::new(ctx.clone(), |ctx: Ctx<'js>, data: TypedArray<'js, u8>| {
+            // SAFETY: the slice is decoded into an owned string and no JS runs while it is alive.
+            let bytes = unsafe { data.as_bytes() }
+                .ok_or_else(|| Exception::throw_type(&ctx, "data buffer is detached"))?;
+            Ok::<_, rquickjs::Error>(String::from_utf8_lossy(bytes).into_owned())
+        })?,
+    )?;
+    Ok(decoder)
 }
 
 fn load_recv(
@@ -284,6 +336,11 @@ mod tests {
                     subject_set: false,
                 }],
             },
+            TestCase {
+                name: "text encoder yields utf-8 bytes",
+                fixture: "text_encode.js",
+                want: vec![new_test_output(INPUT_SUBJECT, &[0xC3, 0xB1], false)],
+            },
         ];
 
         for tc in cases {
@@ -293,6 +350,54 @@ mod tests {
 
             assert_eq!(got, tc.want, "{}", tc.name);
         }
+    }
+
+    #[test]
+    fn process_text_decoder_decodes_input_data() {
+        struct DecodeCase {
+            name: &'static str,
+            data: &'static [u8],
+            want: &'static [u8],
+        }
+        let cases = [
+            DecodeCase {
+                name: "valid utf-8",
+                data: b"hello",
+                want: b"HELLO",
+            },
+            DecodeCase {
+                name: "invalid sequence is replaced",
+                data: &[0xFF],
+                want: &[0xEF, 0xBF, 0xBD],
+            },
+        ];
+
+        for tc in cases {
+            let mut processor = JsProcessor::new(&fixture_path("text_decode.js")).expect(tc.name);
+            let mut input = new_test_input();
+            input.data = Bytes::from_static(tc.data);
+
+            let got = processor.process(input).expect(tc.name);
+
+            assert_eq!(
+                got,
+                vec![new_test_output(INPUT_SUBJECT, tc.want, false)],
+                "{}",
+                tc.name
+            );
+        }
+    }
+
+    #[test]
+    fn process_text_decoder_rejects_unsupported_label() {
+        let mut processor = JsProcessor::new(&fixture_path("text_decoder_latin1.js")).unwrap();
+
+        let err = processor.process(new_test_input()).unwrap_err();
+
+        assert!(
+            err.to_string().contains("RangeError"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
