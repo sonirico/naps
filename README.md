@@ -6,6 +6,11 @@
 [![image](https://img.shields.io/badge/image-ghcr.io%2Fsonirico%2Fnaps-blue)](https://github.com/sonirico/naps/pkgs/container/naps)
 [![license](https://img.shields.io/crates/l/naps.svg)](LICENSE)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sonirico/naps/main/docs/assets/architecture-dark.svg">
+  <img alt="naps relaying messages: bridging clusters, filtering, fan-out, JetStream ack and nak, replicas on Kubernetes" src="https://raw.githubusercontent.com/sonirico/naps/main/docs/assets/architecture-light.svg">
+</picture>
+
 naps relays messages between [NATS](https://nats.io) servers. It subscribes to subjects (or
 pulls from a JetStream consumer) on a source server, optionally runs each message through a
 processor written in TypeScript, JavaScript, Lua or WebAssembly, and publishes the results to a
