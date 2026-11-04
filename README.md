@@ -1,11 +1,46 @@
 # naps
 
+[![ci](https://github.com/sonirico/naps/actions/workflows/ci.yml/badge.svg)](https://github.com/sonirico/naps/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/naps.svg)](https://crates.io/crates/naps)
+[![docs.rs](https://img.shields.io/docsrs/naps)](https://docs.rs/naps)
+[![image](https://img.shields.io/badge/image-ghcr.io%2Fsonirico%2Fnaps-blue)](https://github.com/sonirico/naps/pkgs/container/naps)
+[![license](https://img.shields.io/crates/l/naps.svg)](LICENSE)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sonirico/naps/main/docs/assets/architecture-dark.svg">
+  <img alt="naps relaying messages: bridging clusters, filtering, fan-out, JetStream ack and nak, replicas on Kubernetes" src="https://raw.githubusercontent.com/sonirico/naps/main/docs/assets/architecture-light.svg">
+</picture>
+
 naps relays messages between [NATS](https://nats.io) servers. It subscribes to subjects (or
 pulls from a JetStream consumer) on a source server, optionally runs each message through a
 processor written in TypeScript, JavaScript, Lua or WebAssembly, and publishes the results to a
 destination server. A processor can rewrite a message, drop it, or fan it out into several
 messages. naps is configured by one YAML file, exposes health and Prometheus endpoints, and
 ships as a distroless container image with a Helm chart.
+
+## Install
+
+From crates.io:
+
+```sh
+cargo install naps
+naps --config naps.yaml
+```
+
+Prebuilt Linux binaries (x86_64 and aarch64) are attached to each
+[GitHub release](https://github.com/sonirico/naps/releases).
+
+Container image:
+
+```sh
+docker run --rm -v "$PWD/examples:/etc/naps:ro" ghcr.io/sonirico/naps:latest
+```
+
+Helm chart:
+
+```sh
+helm install naps oci://ghcr.io/sonirico/charts/naps -f values.yaml
+```
 
 ## Configuration
 
@@ -151,15 +186,12 @@ Port 8080 serves `/healthz`, `/readyz` and `/metrics`. All metrics are labelled 
 - `naps_process_duration_seconds`: processor duration histogram, only for routes with a
   processor.
 
-## Install with Helm
+## Helm values
 
-The chart lives in `charts/naps`. The `config` value is rendered as `naps.yaml`; `scripts`
-holds processor files by name and `binaryScripts` holds `.wasm` files as base64. Secrets are
-mounted with `secretMounts` at the `mountPath` of each entry.
-
-```sh
-helm install naps charts/naps -f values.yaml
-```
+The chart is published to `oci://ghcr.io/sonirico/charts/naps` and lives in `charts/naps`.
+The `config` value is rendered as `naps.yaml`; `scripts` holds processor files by name and
+`binaryScripts` holds `.wasm` files as base64. Secrets are mounted with `secretMounts` at the
+`mountPath` of each entry.
 
 ## Local development
 
@@ -171,6 +203,13 @@ just e2e           # build the image and run the kind end-to-end test
 ```
 
 The tests need a running docker daemon.
+
+## Releasing
+
+Releases are driven by [release-plz](https://release-plz.dev). Every push to `main` updates a
+release PR with the next version and the changelog, derived from conventional commits. Merging
+that PR publishes the crate to crates.io, tags `vX.Y.Z`, creates the GitHub release with Linux
+binaries, and pushes the container image and the Helm chart to ghcr.io.
 
 # Thanks
 
