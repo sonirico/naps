@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="320" viewBox="0 0 880 320" role="img" aria-label="naps architecture examples">
+<defs>
+<marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+<path d="M0,0 L10,5 L0,10 z" fill="#4a4943"/>
+</marker>
+</defs>
+<style>
+svg{background:#16171a}
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.title{fill:#e8e6e1;font-size:20px;font-weight:600}
+.caption,.role,.label,.count{fill:#8a877f;font-size:12px}
+.name{fill:#e8e6e1;font-size:15px;font-weight:600}
+.box{fill:#1f2024;stroke:#e8e6e1;stroke-width:1.5}
+.frame{fill:none;stroke:#8a877f;stroke-width:1;stroke-dasharray:4 4}
+.wire{stroke:#4a4943;stroke-width:1.5;fill:none}
+.ok{fill:#4ade80} .bad{fill:#f87171} .ack{fill:#60a5fa}
+.scene,.packet{animation-duration:36s;animation-iteration-count:infinite;animation-timing-function:linear}
+.scene{opacity:0}
+.packet{opacity:0}
+@keyframes s0{0.000%{opacity:0} 1.111%{opacity:1} 15.556%{opacity:1} 16.667%{opacity:0} 100.000%{opacity:0}}
+#s0{animation-name:s0}
+@keyframes s0p0{0.000%{transform:translate(220.0px,170.0px);opacity:0} 0.833%{transform:translate(220.0px,170.0px);opacity:0} 0.972%{transform:translate(220.0px,170.0px);opacity:1} 3.229%{transform:translate(350.0px,170.0px);opacity:1} 6.354%{transform:translate(530.0px,170.0px);opacity:1} 8.611%{transform:translate(660.0px,170.0px);opacity:1} 9.306%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s0p0{animation-name:s0p0}
+@keyframes s0p1{0.000%{transform:translate(220.0px,170.0px);opacity:0} 4.167%{transform:translate(220.0px,170.0px);opacity:0} 4.306%{transform:translate(220.0px,170.0px);opacity:1} 6.562%{transform:translate(350.0px,170.0px);opacity:1} 9.688%{transform:translate(530.0px,170.0px);opacity:1} 11.944%{transform:translate(660.0px,170.0px);opacity:1} 12.639%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s0p1{animation-name:s0p1}
+@keyframes s0p2{0.000%{transform:translate(220.0px,170.0px);opacity:0} 7.500%{transform:translate(220.0px,170.0px);opacity:0} 7.639%{transform:translate(220.0px,170.0px);opacity:1} 9.896%{transform:translate(350.0px,170.0px);opacity:1} 13.021%{transform:translate(530.0px,170.0px);opacity:1} 15.278%{transform:translate(660.0px,170.0px);opacity:1} 15.972%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s0p2{animation-name:s0p2}
+@keyframes s1{0.000%{opacity:0} 16.667%{opacity:0} 17.778%{opacity:1} 35.000%{opacity:1} 36.111%{opacity:0} 100.000%{opacity:0}}
+#s1{animation-name:s1}
+@keyframes s1p0{0.000%{transform:translate(220.0px,170.0px);opacity:0} 17.500%{transform:translate(220.0px,170.0px);opacity:0} 17.639%{transform:translate(220.0px,170.0px);opacity:1} 19.896%{transform:translate(350.0px,170.0px);opacity:1} 23.021%{transform:translate(530.0px,170.0px);opacity:1} 25.278%{transform:translate(660.0px,170.0px);opacity:1} 25.972%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s1p0{animation-name:s1p0}
+@keyframes s1p1{0.000%{transform:translate(220.0px,170.0px);opacity:0} 20.833%{transform:translate(220.0px,170.0px);opacity:0} 20.972%{transform:translate(220.0px,170.0px);opacity:1} 23.229%{transform:translate(350.0px,170.0px);opacity:1} 23.924%{transform:translate(350.0px,170.0px);opacity:0} 100.000%{transform:translate(350.0px,170.0px);opacity:0}}
+#s1p1{animation-name:s1p1}
+@keyframes s1p2{0.000%{transform:translate(220.0px,170.0px);opacity:0} 24.167%{transform:translate(220.0px,170.0px);opacity:0} 24.306%{transform:translate(220.0px,170.0px);opacity:1} 26.562%{transform:translate(350.0px,170.0px);opacity:1} 29.688%{transform:translate(530.0px,170.0px);opacity:1} 31.944%{transform:translate(660.0px,170.0px);opacity:1} 32.639%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s1p2{animation-name:s1p2}
+@keyframes s1p3{0.000%{transform:translate(220.0px,170.0px);opacity:0} 27.500%{transform:translate(220.0px,170.0px);opacity:0} 27.639%{transform:translate(220.0px,170.0px);opacity:1} 29.896%{transform:translate(350.0px,170.0px);opacity:1} 30.590%{transform:translate(350.0px,170.0px);opacity:0} 100.000%{transform:translate(350.0px,170.0px);opacity:0}}
+#s1p3{animation-name:s1p3}
+@keyframes s2{0.000%{opacity:0} 36.111%{opacity:0} 37.222%{opacity:1} 51.667%{opacity:1} 52.778%{opacity:0} 100.000%{opacity:0}}
+#s2{animation-name:s2}
+@keyframes s2p0{0.000%{transform:translate(220.0px,170.0px);opacity:0} 36.944%{transform:translate(220.0px,170.0px);opacity:0} 37.083%{transform:translate(220.0px,170.0px);opacity:1} 39.340%{transform:translate(350.0px,170.0px);opacity:1} 40.035%{transform:translate(350.0px,170.0px);opacity:0} 100.000%{transform:translate(350.0px,170.0px);opacity:0}}
+#s2p0{animation-name:s2p0}
+@keyframes s2p1{0.000%{transform:translate(530.0px,146.8px);opacity:0} 39.444%{transform:translate(530.0px,146.8px);opacity:0} 39.583%{transform:translate(530.0px,146.8px);opacity:1} 41.914%{transform:translate(660.0px,113.2px);opacity:1} 42.609%{transform:translate(660.0px,113.2px);opacity:0} 100.000%{transform:translate(660.0px,113.2px);opacity:0}}
+#s2p1{animation-name:s2p1}
+@keyframes s2p2{0.000%{transform:translate(530.0px,170.0px);opacity:0} 39.444%{transform:translate(530.0px,170.0px);opacity:0} 39.583%{transform:translate(530.0px,170.0px);opacity:1} 41.840%{transform:translate(660.0px,170.0px);opacity:1} 42.535%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s2p2{animation-name:s2p2}
+@keyframes s2p3{0.000%{transform:translate(530.0px,193.2px);opacity:0} 39.444%{transform:translate(530.0px,193.2px);opacity:0} 39.583%{transform:translate(530.0px,193.2px);opacity:1} 41.914%{transform:translate(660.0px,226.8px);opacity:1} 42.609%{transform:translate(660.0px,226.8px);opacity:0} 100.000%{transform:translate(660.0px,226.8px);opacity:0}}
+#s2p3{animation-name:s2p3}
+@keyframes s3{0.000%{opacity:0} 52.778%{opacity:0} 53.889%{opacity:1} 79.444%{opacity:1} 80.556%{opacity:0} 100.000%{opacity:0}}
+#s3{animation-name:s3}
+@keyframes s3p0{0.000%{transform:translate(220.0px,170.0px);opacity:0} 53.611%{transform:translate(220.0px,170.0px);opacity:0} 53.750%{transform:translate(220.0px,170.0px);opacity:1} 56.007%{transform:translate(350.0px,170.0px);opacity:1} 59.132%{transform:translate(530.0px,170.0px);opacity:1} 61.389%{transform:translate(660.0px,170.0px);opacity:1} 62.083%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s3p0{animation-name:s3p0}
+@keyframes s3p1{0.000%{transform:translate(350.0px,170.0px);opacity:0} 61.389%{transform:translate(350.0px,170.0px);opacity:0} 61.528%{transform:translate(350.0px,170.0px);opacity:1} 63.785%{transform:translate(220.0px,170.0px);opacity:1} 64.479%{transform:translate(220.0px,170.0px);opacity:0} 100.000%{transform:translate(220.0px,170.0px);opacity:0}}
+#s3p1{animation-name:s3p1}
+@keyframes s3p2{0.000%{transform:translate(220.0px,170.0px);opacity:0} 63.889%{transform:translate(220.0px,170.0px);opacity:0} 64.028%{transform:translate(220.0px,170.0px);opacity:1} 66.285%{transform:translate(350.0px,170.0px);opacity:1} 66.979%{transform:translate(350.0px,170.0px);opacity:0} 100.000%{transform:translate(350.0px,170.0px);opacity:0}}
+#s3p2{animation-name:s3p2}
+@keyframes s3p3{0.000%{transform:translate(350.0px,170.0px);opacity:0} 66.389%{transform:translate(350.0px,170.0px);opacity:0} 66.528%{transform:translate(350.0px,170.0px);opacity:1} 68.785%{transform:translate(220.0px,170.0px);opacity:1} 69.479%{transform:translate(220.0px,170.0px);opacity:0} 100.000%{transform:translate(220.0px,170.0px);opacity:0}}
+#s3p3{animation-name:s3p3}
+@keyframes s3p4{0.000%{transform:translate(220.0px,170.0px);opacity:0} 68.889%{transform:translate(220.0px,170.0px);opacity:0} 69.028%{transform:translate(220.0px,170.0px);opacity:1} 71.285%{transform:translate(350.0px,170.0px);opacity:1} 74.410%{transform:translate(530.0px,170.0px);opacity:1} 76.667%{transform:translate(660.0px,170.0px);opacity:1} 77.361%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s3p4{animation-name:s3p4}
+@keyframes s3p5{0.000%{transform:translate(350.0px,170.0px);opacity:0} 76.667%{transform:translate(350.0px,170.0px);opacity:0} 76.806%{transform:translate(350.0px,170.0px);opacity:1} 79.062%{transform:translate(220.0px,170.0px);opacity:1} 79.757%{transform:translate(220.0px,170.0px);opacity:0} 100.000%{transform:translate(220.0px,170.0px);opacity:0}}
+#s3p5{animation-name:s3p5}
+@keyframes s4{0.000%{opacity:0} 80.556%{opacity:0} 81.667%{opacity:1} 98.889%{opacity:1} 100.000%{opacity:0}}
+#s4{animation-name:s4}
+@keyframes s4p0{0.000%{transform:translate(220.0px,149.7px);opacity:0} 81.389%{transform:translate(220.0px,149.7px);opacity:0} 81.528%{transform:translate(220.0px,149.7px);opacity:1} 83.842%{transform:translate(350.0px,120.3px);opacity:1} 86.967%{transform:translate(530.0px,120.3px);opacity:1} 89.280%{transform:translate(660.0px,149.7px);opacity:1} 89.975%{transform:translate(660.0px,149.7px);opacity:0} 100.000%{transform:translate(660.0px,149.7px);opacity:0}}
+#s4p0{animation-name:s4p0}
+@keyframes s4p1{0.000%{transform:translate(220.0px,170.0px);opacity:0} 83.611%{transform:translate(220.0px,170.0px);opacity:0} 83.750%{transform:translate(220.0px,170.0px);opacity:1} 86.007%{transform:translate(350.0px,170.0px);opacity:1} 89.132%{transform:translate(530.0px,170.0px);opacity:1} 91.389%{transform:translate(660.0px,170.0px);opacity:1} 92.083%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s4p1{animation-name:s4p1}
+@keyframes s4p2{0.000%{transform:translate(220.0px,190.3px);opacity:0} 85.833%{transform:translate(220.0px,190.3px);opacity:0} 85.972%{transform:translate(220.0px,190.3px);opacity:1} 88.286%{transform:translate(350.0px,219.7px);opacity:1} 91.411%{transform:translate(530.0px,219.7px);opacity:1} 93.725%{transform:translate(660.0px,190.3px);opacity:1} 94.419%{transform:translate(660.0px,190.3px);opacity:0} 100.000%{transform:translate(660.0px,190.3px);opacity:0}}
+#s4p2{animation-name:s4p2}
+@keyframes s4p3{0.000%{transform:translate(220.0px,149.7px);opacity:0} 88.056%{transform:translate(220.0px,149.7px);opacity:0} 88.194%{transform:translate(220.0px,149.7px);opacity:1} 90.508%{transform:translate(350.0px,120.3px);opacity:1} 93.633%{transform:translate(530.0px,120.3px);opacity:1} 95.947%{transform:translate(660.0px,149.7px);opacity:1} 96.641%{transform:translate(660.0px,149.7px);opacity:0} 100.000%{transform:translate(660.0px,149.7px);opacity:0}}
+#s4p3{animation-name:s4p3}
+@keyframes s4p4{0.000%{transform:translate(220.0px,170.0px);opacity:0} 90.278%{transform:translate(220.0px,170.0px);opacity:0} 90.417%{transform:translate(220.0px,170.0px);opacity:1} 92.674%{transform:translate(350.0px,170.0px);opacity:1} 95.799%{transform:translate(530.0px,170.0px);opacity:1} 98.056%{transform:translate(660.0px,170.0px);opacity:1} 98.750%{transform:translate(660.0px,170.0px);opacity:0} 100.000%{transform:translate(660.0px,170.0px);opacity:0}}
+#s4p4{animation-name:s4p4}
+</style>
+<rect width="880" height="320" fill="#16171a"/>
+<circle class="ok" cx="550" cy="292" r="5"/>
+<text class="caption" x="560" y="296">message</text>
+<circle class="bad" cx="646" cy="292" r="5"/>
+<text class="caption" x="656" y="296">dropped / nak</text>
+<circle class="ack" cx="790" cy="292" r="5"/>
+<text class="caption" x="800" y="296">ack</text>
+<g class="scene" id="s0">
+<text class="count" x="40" y="40">1/5</text>
+<text class="title" x="80" y="42">bridge two clusters</text>
+<text class="caption" x="40" y="296">subscribe on one server, publish on another</text>
+<line class="wire" x1="220.0" y1="170.0" x2="350.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="285.0" y="160.0" text-anchor="middle">telemetry.></text>
+<line class="wire" x1="530.0" y1="170.0" x2="660.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="595.0" y="160.0" text-anchor="middle">telemetry.></text>
+<circle class="packet ok" id="s0p0" r="6"/>
+<circle class="packet ok" id="s0p1" r="6"/>
+<circle class="packet ok" id="s0p2" r="6"/>
+<rect class="box" x="40.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="130" y="167" text-anchor="middle">nats edge</text>
+<text class="role" x="130" y="185" text-anchor="middle">eu-west</text>
+<rect class="box" x="350.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="167" text-anchor="middle">naps</text>
+<text class="role" x="440" y="185" text-anchor="middle">route: telemetry</text>
+<rect class="box" x="660.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="167" text-anchor="middle">nats core</text>
+<text class="role" x="750" y="185" text-anchor="middle">us-east</text>
+</g>
+<g class="scene" id="s1">
+<text class="count" x="40" y="40">2/5</text>
+<text class="title" x="80" y="42">filter and transform</text>
+<text class="caption" x="40" y="296">orders.ts drops what is not confirmed and renames the rest</text>
+<line class="wire" x1="220.0" y1="170.0" x2="350.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="285.0" y="160.0" text-anchor="middle">orders.></text>
+<line class="wire" x1="530.0" y1="170.0" x2="660.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="595.0" y="160.0" text-anchor="middle">orders.confirmed</text>
+<circle class="packet ok" id="s1p0" r="6"/>
+<circle class="packet bad" id="s1p1" r="6"/>
+<circle class="packet ok" id="s1p2" r="6"/>
+<circle class="packet bad" id="s1p3" r="6"/>
+<rect class="box" x="40.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="130" y="167" text-anchor="middle">nats</text>
+<text class="role" x="130" y="185" text-anchor="middle">source</text>
+<rect class="box" x="350.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="167" text-anchor="middle">naps</text>
+<text class="role" x="440" y="185" text-anchor="middle">processor: orders.ts</text>
+<rect class="box" x="660.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="167" text-anchor="middle">nats</text>
+<text class="role" x="750" y="185" text-anchor="middle">destination</text>
+</g>
+<g class="scene" id="s2">
+<text class="count" x="40" y="40">3/5</text>
+<text class="title" x="80" y="42">fan-out</text>
+<text class="caption" x="40" y="296">the processor returns a list: one message in, three out</text>
+<line class="wire" x1="220.0" y1="170.0" x2="350.0" y2="170.0" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="146.8" x2="660.0" y2="113.2" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="170.0" x2="660.0" y2="170.0" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="193.2" x2="660.0" y2="226.8" marker-end="url(#head)"/>
+<circle class="packet ok" id="s2p0" r="6"/>
+<circle class="packet ok" id="s2p1" r="6"/>
+<circle class="packet ok" id="s2p2" r="6"/>
+<circle class="packet ok" id="s2p3" r="6"/>
+<rect class="box" x="40.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="130" y="167" text-anchor="middle">nats</text>
+<text class="role" x="130" y="185" text-anchor="middle">orders.created</text>
+<rect class="box" x="350.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="167" text-anchor="middle">naps</text>
+<text class="role" x="440" y="185" text-anchor="middle">processor: fanout.lua</text>
+<rect class="box" x="660.0" y="62.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="87" text-anchor="middle">billing</text>
+<text class="role" x="750" y="105" text-anchor="middle">billing.orders</text>
+<rect class="box" x="660.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="167" text-anchor="middle">shipping</text>
+<text class="role" x="750" y="185" text-anchor="middle">shipping.orders</text>
+<rect class="box" x="660.0" y="222.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="247" text-anchor="middle">audit</text>
+<text class="role" x="750" y="265" text-anchor="middle">audit.orders</text>
+</g>
+<g class="scene" id="s3">
+<text class="count" x="40" y="40">4/5</text>
+<text class="title" x="80" y="42">jetstream, at least once</text>
+<text class="caption" x="40" y="296">ack after publish; on error nak, and the stream redelivers</text>
+<line class="wire" x1="220.0" y1="170.0" x2="350.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="285.0" y="160.0" text-anchor="middle">pull</text>
+<line class="wire" x1="530.0" y1="170.0" x2="660.0" y2="170.0" marker-end="url(#head)"/>
+<text class="label" x="595.0" y="160.0" text-anchor="middle">publish</text>
+<circle class="packet ok" id="s3p0" r="6"/>
+<circle class="packet ack" id="s3p1" r="6"/>
+<circle class="packet bad" id="s3p2" r="6"/>
+<circle class="packet bad" id="s3p3" r="6"/>
+<circle class="packet ok" id="s3p4" r="6"/>
+<circle class="packet ack" id="s3p5" r="6"/>
+<rect class="box" x="40.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="130" y="167" text-anchor="middle">stream ORDERS</text>
+<text class="role" x="130" y="185" text-anchor="middle">consumer: naps-orders</text>
+<rect class="box" x="350.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="167" text-anchor="middle">naps</text>
+<text class="role" x="440" y="185" text-anchor="middle">pull consumer</text>
+<rect class="box" x="660.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="167" text-anchor="middle">stream AUDIT</text>
+<text class="role" x="750" y="185" text-anchor="middle">to.mode: jetstream</text>
+</g>
+<g class="scene" id="s4">
+<text class="count" x="40" y="40">5/5</text>
+<text class="title" x="80" y="42">kubernetes</text>
+<text class="caption" x="40" y="296">helm install; replicas share the subject through a queue group</text>
+<rect class="frame" x="336.0" y="50.0" width="208" height="228.0" rx="6"/>
+<text class="label" x="342.0" y="64.0">queue group naps-orders</text>
+<line class="wire" x1="220.0" y1="149.7" x2="350.0" y2="120.3" marker-end="url(#head)"/>
+<line class="wire" x1="220.0" y1="170.0" x2="350.0" y2="170.0" marker-end="url(#head)"/>
+<line class="wire" x1="220.0" y1="190.3" x2="350.0" y2="219.7" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="120.3" x2="660.0" y2="149.7" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="170.0" x2="660.0" y2="170.0" marker-end="url(#head)"/>
+<line class="wire" x1="530.0" y1="219.7" x2="660.0" y2="190.3" marker-end="url(#head)"/>
+<circle class="packet ok" id="s4p0" r="6"/>
+<circle class="packet ok" id="s4p1" r="6"/>
+<circle class="packet ok" id="s4p2" r="6"/>
+<circle class="packet ok" id="s4p3" r="6"/>
+<circle class="packet ok" id="s4p4" r="6"/>
+<rect class="box" x="40.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="130" y="167" text-anchor="middle">nats</text>
+<text class="role" x="130" y="185" text-anchor="middle">orders.></text>
+<rect class="box" x="350.0" y="72.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="97" text-anchor="middle">naps-0</text>
+<text class="role" x="440" y="115" text-anchor="middle">pod</text>
+<rect class="box" x="350.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="167" text-anchor="middle">naps-1</text>
+<text class="role" x="440" y="185" text-anchor="middle">pod</text>
+<rect class="box" x="350.0" y="212.0" width="180" height="56" rx="4"/>
+<text class="name" x="440" y="237" text-anchor="middle">naps-2</text>
+<text class="role" x="440" y="255" text-anchor="middle">pod</text>
+<rect class="box" x="660.0" y="142.0" width="180" height="56" rx="4"/>
+<text class="name" x="750" y="167" text-anchor="middle">nats</text>
+<text class="role" x="750" y="185" text-anchor="middle">destination</text>
+</g>
+</svg>

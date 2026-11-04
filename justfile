@@ -15,3 +15,6 @@ image:
 
 e2e: image
     bash e2e/run.sh
+
+readme-svg:
+    python3 scripts/readme_svg.py
